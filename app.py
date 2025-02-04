@@ -1,5 +1,7 @@
-from flask import Flask, request
+import json
 import os
+from io import StringIO
+from flask import Flask, request
 import datetime
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
@@ -16,17 +18,18 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # Google Drive Authentication
 def authenticate_drive():
     gauth = GoogleAuth()
-    gauth.LoadCredentialsFile("mycreds.txt")
-    if gauth.credentials is None:
-        gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        gauth.Refresh()
-    else:
-        gauth.Authorize()
+
+    # Read client_secrets.json from environment variable
+    client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
+
+    if client_secrets_content:
+        with open("client_secrets.json", "w") as f:
+            f.write(client_secrets_content)
+
+    gauth.LoadClientConfigFile("client_secrets.json")
+    gauth.LocalWebserverAuth()
     gauth.SaveCredentialsFile("mycreds.txt")
     return GoogleDrive(gauth)
-
-drive = authenticate_drive()
 
 # Function to find or create a folder in Google Drive
 def get_drive_folder(parent_id, folder_name):
