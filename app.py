@@ -1,8 +1,7 @@
 import json
 import os
-from io import StringIO
-from flask import Flask, request
 import datetime
+from flask import Flask, request
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -19,17 +18,25 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def authenticate_drive():
     gauth = GoogleAuth()
 
+    # Load client_secrets.json from Render's environment variables
     client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
     my_creds_content = os.getenv("MYCREDS_TXT")
 
-    if client_secrets_content:
-        with open("client_secrets.json", "w") as f:
-            f.write(client_secrets_content)
+    if not client_secrets_content:
+        raise Exception("CLIENT_SECRETS_JSON is missing from environment variables.")
 
-    if my_creds_content:
-        with open("mycreds.txt", "w") as f:
-            f.write(my_creds_content)
+    if not my_creds_content:
+        raise Exception("MYCREDS_TXT is missing from environment variables.")
 
+    # Write client_secrets.json locally
+    with open("client_secrets.json", "w") as f:
+        f.write(client_secrets_content)
+
+    # Write mycreds.txt locally
+    with open("mycreds.txt", "w") as f:
+        f.write(my_creds_content)
+
+    # Authenticate Google Drive
     gauth.LoadCredentialsFile("mycreds.txt")
     if gauth.credentials is None:
         gauth.LocalWebserverAuth()
@@ -38,14 +45,14 @@ def authenticate_drive():
     else:
         gauth.Authorize()
     gauth.SaveCredentialsFile("mycreds.txt")
+    
     return GoogleDrive(gauth)
+
+# Initialize Google Drive Authentication
+drive = authenticate_drive()
 
 # Function to find or create a folder in Google Drive
 def get_drive_folder(parent_id, folder_name):
-    global drive  # Ensure drive is available
-    if 'drive' not in globals():
-        drive = authenticate_drive()  # Re-authenticate if necessary
-
     file_list = drive.ListFile({
         'q': f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
     }).GetList()
@@ -79,21 +86,7 @@ def index():
             <label for='pharmacy'>Select Pharmacy:</label>
             <select name='pharmacy' id='pharmacy' required>
                 <option value=''>--Select a Pharmacy--</option>
-                <option value='Pharmacy 1'>Pharmacy 1</option>
-                <option value='Pharmacy 2'>Pharmacy 2</option>
-                <option value='Pharmacy 3'>Pharmacy 3</option>
-                <option value='Pharmacy 4'>Pharmacy 4</option>
-                <option value='Pharmacy 5'>Pharmacy 5</option>
-                <option value='Pharmacy 6'>Pharmacy 6</option>
-                <option value='Pharmacy 7'>Pharmacy 7</option>
-                <option value='Pharmacy 8'>Pharmacy 8</option>
-                <option value='Pharmacy 9'>Pharmacy 9</option>
-                <option value='Pharmacy 10'>Pharmacy 10</option>
-                <option value='Pharmacy 11'>Pharmacy 11</option>
-                <option value='Pharmacy 12'>Pharmacy 12</option>
-                <option value='Pharmacy 13'>Pharmacy 13</option>
-                <option value='Pharmacy 14'>Pharmacy 14</option>
-                <option value='Pharmacy 15'>Pharmacy 15</option>
+                ''' + ''.join([f"<option value='Pharmacy {i}'>Pharmacy {i}</option>" for i in range(1, 16)]) + '''
             </select>
             <br><br>
 
@@ -135,6 +128,7 @@ def index():
     </body>
     </html>
     '''
+
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'file' not in request.files or 'pharmacy' not in request.form or 'rate' not in request.form:
