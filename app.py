@@ -19,15 +19,24 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def authenticate_drive():
     gauth = GoogleAuth()
 
-    # Read client_secrets.json from environment variable
     client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
+    my_creds_content = os.getenv("MYCREDS_TXT")
 
     if client_secrets_content:
         with open("client_secrets.json", "w") as f:
             f.write(client_secrets_content)
 
-    gauth.LoadClientConfigFile("client_secrets.json")
-    gauth.LocalWebserverAuth()
+    if my_creds_content:
+        with open("mycreds.txt", "w") as f:
+            f.write(my_creds_content)
+
+    gauth.LoadCredentialsFile("mycreds.txt")
+    if gauth.credentials is None:
+        gauth.LocalWebserverAuth()
+    elif gauth.access_token_expired:
+        gauth.Refresh()
+    else:
+        gauth.Authorize()
     gauth.SaveCredentialsFile("mycreds.txt")
     return GoogleDrive(gauth)
 
