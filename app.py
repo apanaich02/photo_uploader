@@ -75,34 +75,99 @@ ROOT_FOLDER_ID = "1tveP4qft85NmTwqJZGzHZcHhtSqHWyuW"  # Change this to your main
 @app.route('/')
 def index():
     return '''
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Upload Photo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                background-color: #f7f7f7;
+                color: #333;
+                margin: 0;
+                padding: 20px;
+            }
+            .container {
+                max-width: 400px;
+                margin: auto;
+                padding: 20px;
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            h2 {
+                font-size: 22px;
+            }
+            input, select, button {
+                width: 100%;
+                padding: 12px;
+                margin: 8px 0;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                font-size: 16px;
+            }
+            input[type="file"] {
+                border: none;
+                background: #e3e3e3;
+            }
+            button {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #0056b3;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1e1e1e;
+                    color: white;
+                }
+                .container {
+                    background: #333;
+                    color: white;
+                }
+                input, select {
+                    background: #444;
+                    color: white;
+                    border: 1px solid #666;
+                }
+                button {
+                    background-color: #0d6efd;
+                }
+            }
+        </style>
+    </head>
     <body>
-        <h2>Take a Picture, Select a Pharmacy and Rate, and Upload</h2>
-        <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
-            <label for='file'>Take a Picture:</label>
-            <input type='file' accept='image/*' capture='camera' name='file' required>
-            <br><br>
+        <div class="container">
+            <h2>Upload a Picture</h2>
+            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
+                
+                <label for='file'>Take a Picture:</label>
+                <input type='file' accept='image/*' capture='camera' name='file' required>
 
-            <label for='pharmacy'>Select Pharmacy:</label>
-            <select name='pharmacy' id='pharmacy' required>
-                <option value=''>--Select a Pharmacy--</option>
-                ''' + ''.join([f"<option value='Pharmacy {i}'>Pharmacy {i}</option>" for i in range(1, 16)]) + '''
-            </select>
-            <br><br>
+                <label for='pharmacy'>Select Pharmacy:</label>
+                <select name='pharmacy' id='pharmacy' required>
+                    <option value=''>--Select a Pharmacy--</option>
+                    ''' + ''.join([f"<option value='Pharmacy {i}'>Pharmacy {i}</option>" for i in range(1, 16)]) + '''
+                </select>
 
-            <label for='rate'>Select Rate:</label>
-            <select name='rate' id='rate' required>
-                <option value=''>--Select a Rate--</option>
-                <option value='ECO'>ECO</option>
-                <option value='REG'>REG</option>
-                <option value='HOT'>HOT</option>
-                <option value='RSH'>RSH</option>
-                <option value='SHT'>SHT</option>
-            </select>
-            <br><br>
+                <label for='rate'>Select Rate:</label>
+                <select name='rate' id='rate' required>
+                    <option value=''>--Select a Rate--</option>
+                    <option value='ECO'>ECO</option>
+                    <option value='REG'>REG</option>
+                    <option value='HOT'>HOT</option>
+                    <option value='RSH'>RSH</option>
+                    <option value='SHT'>SHT</option>
+                </select>
 
-            <input type='submit' value='Send'>
-        </form>
+                <button type='submit'>Upload</button>
+            </form>
+        </div>
 
         <script>
             function uploadFile() {
@@ -116,10 +181,10 @@ def index():
                 })
                 .then(response => response.text())
                 .then(data => {
-                    alert(data); // Show popup confirmation
-                    document.getElementById('uploadForm').reset(); // Reset form
-                    document.getElementById('pharmacy').value = selectedPharmacy; // Keep previous selection
-                    document.getElementById('rate').value = selectedRate; // Keep previous selection
+                    alert(data);
+                    document.getElementById('uploadForm').reset();
+                    document.getElementById('pharmacy').value = selectedPharmacy;
+                    document.getElementById('rate').value = selectedRate;
                 })
                 .catch(error => console.error('Error:', error));
                 return false;
