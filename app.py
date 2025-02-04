@@ -79,12 +79,12 @@ def index():
     <html lang="en">
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Upload Photo</title>
+        <title>Anchor Delivery - Upload</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
                 text-align: center;
-                background-color: #f7f7f7;
+                background-color: #f4f4f4;
                 color: #333;
                 margin: 0;
                 padding: 20px;
@@ -97,8 +97,13 @@ def index():
                 border-radius: 10px;
                 box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
             }
+            .logo {
+                max-width: 200px;
+                margin-bottom: 15px;
+            }
             h2 {
                 font-size: 22px;
+                color: #007bff;
             }
             input, select, button {
                 width: 100%;
@@ -143,7 +148,8 @@ def index():
     </head>
     <body>
         <div class="container">
-            <h2>Upload a Picture</h2>
+            <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
+            <h2>Upload a Delivery Photo</h2>
             <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
                 
                 <label for='file'>Take a Picture:</label>
@@ -193,6 +199,7 @@ def index():
     </body>
     </html>
     '''
+
 
 @app.route('/upload', methods=['POST'])
 def upload():
