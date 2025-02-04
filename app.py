@@ -42,12 +42,23 @@ def authenticate_drive():
 
 # Function to find or create a folder in Google Drive
 def get_drive_folder(parent_id, folder_name):
-    file_list = drive.ListFile({'q': f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"}).GetList()
+    global drive  # Ensure drive is available
+    if 'drive' not in globals():
+        drive = authenticate_drive()  # Re-authenticate if necessary
+
+    file_list = drive.ListFile({
+        'q': f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    }).GetList()
+
     for file in file_list:
         if file['title'] == folder_name:
             return file['id']
-    
-    folder = drive.CreateFile({'title': folder_name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': parent_id}]})
+
+    folder = drive.CreateFile({
+        'title': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [{'id': parent_id}]
+    })
     folder.Upload()
     return folder['id']
 
