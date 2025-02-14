@@ -192,46 +192,43 @@ def index():
                 <button onclick="closePopup()">OK</button>
             </div>
         </div>
-
-        <script>
-            function uploadFile() {
-                document.getElementById("progressBarContainer").style.display = "block";
-                var progressBar = document.getElementById("progressBar");
-                progressBar.style.width = "0%";
-                var interval = setInterval(() => {
-                    let currentWidth = parseInt(progressBar.style.width);
-                    if (currentWidth < 100) {
-                        progressBar.style.width = (currentWidth + 10) + "%";
-                    } else {
-                        clearInterval(interval);
-                    }
-                }, 500);
-
-                return true;
-            }
-
-            function closePopup() {
-                document.getElementById("confirmationPopup").style.display = "none";
-                document.getElementById("fileInput").value = "";  
-            }
-        </script>
     </body>
     </html>
     '''
 
-# Function to keep the server alive
-def keep_alive():
-    while True:
-        try:
-            url = "https://your-app-url.onrender.com"  # Replace with your Render URL
-            response = requests.get(url)
-            print(f"Pinged server: {response.status_code}")
-        except Exception as e:
-            print(f"Error pinging server: {e}")
-        time.sleep(600)  # Wait 10 minutes before the next ping
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files or 'pharmacy' not in request.form or 'rate' not in request.form:
+        return 'Missing required fields'
 
-# Start keep-alive thread
-threading.Thread(target=keep_alive, daemon=True).start()
+    file = request.files['file']
+    pharmacy = request.form['pharmacy'].strip()
+    rate = request.form['rate'].strip()
+
+    if file.filename == '':
+        return 'No selected file'
+
+    # Get the current date
+    current_date = datetime.datetime.now()
+    month_folder = current_date.strftime("%B")
+    formatted_date = current_date.strftime("%Y-%m-%d")
+
+    # Construct the filename
+    filename = secure_filename(f"{pharmacy}_{formatted_date}_{rate}.jpg")
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+
+    # Get or create the month folder in Google Drive
+    month_folder_id = get_drive_folder(ROOT_FOLDER_ID, month_folder)
+    # Get or create the pharmacy folder inside the month folder
+    pharmacy_folder_id = get_drive_folder(month_folder_id, pharmacy)
+
+    # Upload the file to Google Drive inside the correct pharmacy folder
+    gfile = drive.CreateFile({'title': filename, 'parents': [{'id': pharmacy_folder_id}]})
+    gfile.SetContentFile(filepath)
+    gfile.Upload()
+
+    return f'File successfully uploaded to Google Drive in {month_folder}/{pharmacy} as {filename}'
 
 if __name__ == "__main__":
     from waitress import serve
