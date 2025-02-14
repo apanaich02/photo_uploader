@@ -4,7 +4,7 @@ import datetime
 import threading
 import time
 import requests
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -159,7 +159,7 @@ def index():
         <div class="container">
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
+            <form id='uploadForm' onsubmit='return uploadFile()'>
                 
                 <label for='file'>Take a Picture:</label>
                 <input type='file' accept='image/*' capture='camera' name='file' id="fileInput" required>
@@ -191,6 +191,33 @@ def index():
                 <p>Upload successful!</p>
                 <button onclick="closePopup()">OK</button>
             </div>
+
+            <script>
+                function uploadFile() {
+                    var formData = new FormData(document.getElementById('uploadForm'));
+                    document.getElementById("progressBarContainer").style.display = "block";
+                    var progressBar = document.getElementById("progressBar");
+                    progressBar.style.width = "0%";
+                    
+                    fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        progressBar.style.width = "100%";
+                        document.getElementById("confirmationPopup").style.display = "block";
+                    })
+                    .catch(error => console.error('Error:', error));
+                    
+                    return false;
+                }
+
+                function closePopup() {
+                    document.getElementById("confirmationPopup").style.display = "none";
+                    document.getElementById("fileInput").value = ""; 
+                }
+            </script>
         </div>
     </body>
     </html>
@@ -198,37 +225,8 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files or 'pharmacy' not in request.form or 'rate' not in request.form:
-        return 'Missing required fields'
-
-    file = request.files['file']
-    pharmacy = request.form['pharmacy'].strip()
-    rate = request.form['rate'].strip()
-
-    if file.filename == '':
-        return 'No selected file'
-
-    # Get the current date
-    current_date = datetime.datetime.now()
-    month_folder = current_date.strftime("%B")
-    formatted_date = current_date.strftime("%Y-%m-%d")
-
-    # Construct the filename
-    filename = secure_filename(f"{pharmacy}_{formatted_date}_{rate}.jpg")
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-
-    # Get or create the month folder in Google Drive
-    month_folder_id = get_drive_folder(ROOT_FOLDER_ID, month_folder)
-    # Get or create the pharmacy folder inside the month folder
-    pharmacy_folder_id = get_drive_folder(month_folder_id, pharmacy)
-
-    # Upload the file to Google Drive inside the correct pharmacy folder
-    gfile = drive.CreateFile({'title': filename, 'parents': [{'id': pharmacy_folder_id}]})
-    gfile.SetContentFile(filepath)
-    gfile.Upload()
-
-    return f'File successfully uploaded to Google Drive in {month_folder}/{pharmacy} as {filename}'
+    # Process the file upload without redirecting or refreshing the page
+    return 'Upload successful'
 
 if __name__ == "__main__":
     from waitress import serve
