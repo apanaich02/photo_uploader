@@ -1,10 +1,13 @@
+Share
+
+You said:
 import json
 import os
 import datetime
 import threading
 import time
 import requests
-from flask import Flask, request, render_template_string
+from flask import Flask, request
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -13,14 +16,6 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB file size limit
 
-# ✅ Define a list of pharmacy names (Easily Modifiable)
-PHARMACIES = [
-    "Pharmacy 1", "Pharmacy 2", "Pharmacy 3", "Pharmacy 4", 
-    "Pharmacy 5", "Pharmacy 6", "Pharmacy 7", "Pharmacy 8", 
-    "Pharmacy 9", "Pharmacy 10", "Pharmacy 11", "Pharmacy 12",
-    "Pharmacy 13", "Pharmacy 14", "Pharmacy 15"
-]
-
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -28,18 +23,26 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # Google Drive Authentication
 def authenticate_drive():
     gauth = GoogleAuth()
+
+    # Load client_secrets.json from Render's environment variables
     client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
     my_creds_content = os.getenv("MYCREDS_TXT")
 
-    if not client_secrets_content or not my_creds_content:
-        raise Exception("Google Drive credentials missing.")
+    if not client_secrets_content:
+        raise Exception("CLIENT_SECRETS_JSON is missing from environment variables.")
 
+    if not my_creds_content:
+        raise Exception("MYCREDS_TXT is missing from environment variables.")
+
+    # Write client_secrets.json locally
     with open("client_secrets.json", "w") as f:
         f.write(client_secrets_content)
 
+    # Write mycreds.txt locally
     with open("mycreds.txt", "w") as f:
         f.write(my_creds_content)
 
+    # Authenticate Google Drive
     gauth.LoadCredentialsFile("mycreds.txt")
     if gauth.credentials is None:
         gauth.LocalWebserverAuth()
@@ -73,11 +76,11 @@ def get_drive_folder(parent_id, folder_name):
     return folder['id']
 
 # Define the root Google Drive folder where all images will be stored
-ROOT_FOLDER_ID = "1tveP4qft85NmTwqJZGzHZcHhtSqHWyuW"
+ROOT_FOLDER_ID = "1tveP4qft85NmTwqJZGzHZcHhtSqHWyuW"  # Change this to your main Drive folder ID
 
 @app.route('/')
 def index():
-    return render_template_string('''
+    return '''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -129,6 +132,63 @@ def index():
             button:hover {
                 background-color: #0056b3;
             }
+            #progressContainer {
+                display: none;
+                margin-top: 10px;
+                width: 100%;
+            }
+            #progressBar {
+                width: 0%;
+                height: 10px;
+                background-color: #007bff;
+                border-radius: 5px;
+            }
+            #popup {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .popup-content {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center;
+                max-width: 300px;
+            }
+            .popup-content button {
+                margin-top: 10px;
+                width: 100%;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1e1e1e;
+                    color: white;
+                }
+                .container {
+                    background: #333;
+                    color: white;
+                }
+                input, select {
+                    background: #444;
+                    color: white;
+                    border: 1px solid #666;
+                }
+                button {
+                    background-color: #0d6efd;
+                }
+                .popup-content {
+                    background: #444;
+                    color: white;
+                }
+            }
         </style>
     </head>
     <body>
@@ -136,15 +196,14 @@ def index():
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
             <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
+                
                 <label for='file'>Take a Picture:</label>
                 <input type='file' accept='image/*' capture='camera' name='file' required>
 
                 <label for='pharmacy'>Select Pharmacy:</label>
                 <select name='pharmacy' id='pharmacy' required>
                     <option value=''>--Select a Pharmacy--</option>
-                    {% for pharmacy in pharmacies %}
-                        <option value="{{ pharmacy }}">{{ pharmacy }}</option>
-                    {% endfor %}
+                    ''' + ''.join([f"<option value='Pharmacy {i}'>Pharmacy {i}</option>" for i in range(1, 16)]) + '''
                 </select>
 
                 <label for='rate'>Select Rate:</label>
@@ -175,12 +234,19 @@ def index():
         <script>
             function uploadFile() {
                 var formData = new FormData(document.getElementById('uploadForm'));
+                var selectedPharmacy = document.getElementById('pharmacy').value;
+                var selectedRate = document.getElementById('rate').value;
+                
                 document.getElementById("progressContainer").style.display = "block";
                 var progressBar = document.getElementById("progressBar");
                 progressBar.style.width = "0%";
 
+                var uploadTime = 5000; // Estimated upload time (5 seconds)
+                var startTime = Date.now();
+
                 var progressInterval = setInterval(function() {
-                    var progress = Math.min((Date.now() % 5000) / 50, 100);
+                    var elapsedTime = Date.now() - startTime;
+                    var progress = Math.min((elapsedTime / uploadTime) * 100, 100);
                     progressBar.style.width = progress + "%";
                     
                     if (progress >= 100) {
@@ -197,10 +263,14 @@ def index():
                     clearInterval(progressInterval);
                     progressBar.style.width = "100%";
                     showPopup(data);
+                    document.getElementById('uploadForm').reset();
+                    document.getElementById('pharmacy').value = selectedPharmacy;
+                    document.getElementById('rate').value = selectedRate;
                 })
                 .catch(error => {
                     clearInterval(progressInterval);
                     showPopup("Upload failed. Please try again.");
+                    console.error('Error:', error);
                 });
                 return false;
             }
@@ -217,7 +287,7 @@ def index():
         </script>
     </body>
     </html>
-    ''', pharmacies=PHARMACIES)
+    '''
 
 @app.route('/upload', methods=['POST'])
 def upload():
