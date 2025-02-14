@@ -4,7 +4,7 @@ import datetime
 import threading
 import time
 import requests
-from flask import Flask, request
+from flask import Flask, request, redirect, url_for
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -152,7 +152,7 @@ def index():
         <div class="container">
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
+            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data'>
                 
                 <label for='file'>Take a Picture:</label>
                 <input type='file' accept='image/*' capture='camera' name='file' required>
@@ -212,7 +212,8 @@ def upload():
     gfile.SetContentFile(filepath)
     gfile.Upload()
 
-    return f'File successfully uploaded to Google Drive in {month_folder}/{pharmacy} as {filename}'
+    # Refresh the page after upload
+    return redirect(url_for('index'))
 
 # Function to keep the server alive
 def keep_alive():
