@@ -128,23 +128,30 @@ def index():
             button:hover {
                 background-color: #0056b3;
             }
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background-color: #1e1e1e;
-                    color: white;
-                }
-                .container {
-                    background: #333;
-                    color: white;
-                }
-                input, select {
-                    background: #444;
-                    color: white;
-                    border: 1px solid #666;
-                }
-                button {
-                    background-color: #0d6efd;
-                }
+            #progressBarContainer {
+                display: none;
+                width: 100%;
+                background-color: #ccc;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            #progressBar {
+                height: 20px;
+                width: 0%;
+                background-color: #4CAF50;
+                border-radius: 5px;
+            }
+            #confirmationPopup {
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center;
             }
         </style>
     </head>
@@ -152,10 +159,10 @@ def index():
         <div class="container">
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data'>
+            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
                 
                 <label for='file'>Take a Picture:</label>
-                <input type='file' accept='image/*' capture='camera' name='file' required>
+                <input type='file' accept='image/*' capture='camera' name='file' id="fileInput" required>
 
                 <label for='pharmacy'>Select Pharmacy:</label>
                 <select name='pharmacy' id='pharmacy' required>
@@ -175,7 +182,39 @@ def index():
 
                 <button type='submit'>Upload</button>
             </form>
+
+            <div id="progressBarContainer">
+                <div id="progressBar"></div>
+            </div>
+
+            <div id="confirmationPopup">
+                <p>Upload successful!</p>
+                <button onclick="closePopup()">OK</button>
+            </div>
         </div>
+
+        <script>
+            function uploadFile() {
+                document.getElementById("progressBarContainer").style.display = "block";
+                var progressBar = document.getElementById("progressBar");
+                progressBar.style.width = "0%";
+                var interval = setInterval(() => {
+                    let currentWidth = parseInt(progressBar.style.width);
+                    if (currentWidth < 100) {
+                        progressBar.style.width = (currentWidth + 10) + "%";
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 500);
+
+                return true;
+            }
+
+            function closePopup() {
+                document.getElementById("confirmationPopup").style.display = "none";
+                document.getElementById("fileInput").value = "";  
+            }
+        </script>
     </body>
     </html>
     '''
@@ -192,41 +231,16 @@ def upload():
     if file.filename == '':
         return 'No selected file'
 
-    # Get the current date
-    current_date = datetime.datetime.now()
-    month_folder = current_date.strftime("%B")
-    formatted_date = current_date.strftime("%Y-%m-%d")
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename)))
 
-    # Construct the filename
-    filename = secure_filename(f"{pharmacy}_{formatted_date}_{rate}.jpg")
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-
-    # Get or create the month folder in Google Drive
-    month_folder_id = get_drive_folder(ROOT_FOLDER_ID, month_folder)
-    # Get or create the pharmacy folder inside the month folder
-    pharmacy_folder_id = get_drive_folder(month_folder_id, pharmacy)
-
-    # Upload the file to Google Drive inside the correct pharmacy folder
-    gfile = drive.CreateFile({'title': filename, 'parents': [{'id': pharmacy_folder_id}]})
-    gfile.SetContentFile(filepath)
-    gfile.Upload()
-
-    # Refresh the page after upload
     return redirect(url_for('index'))
 
-# Function to keep the server alive
+# Keep-alive function
 def keep_alive():
     while True:
-        try:
-            url = "https://your-app-url.onrender.com"  # Replace with your Render URL
-            response = requests.get(url)
-            print(f"Pinged server: {response.status_code}")
-        except Exception as e:
-            print(f"Error pinging server: {e}")
-        time.sleep(600)  # Wait 10 minutes before the next ping
+        requests.get("https://your-app-url.onrender.com")
+        time.sleep(600)
 
-# Start keep-alive thread
 threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == "__main__":
