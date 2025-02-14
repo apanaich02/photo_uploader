@@ -18,7 +18,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def authenticate_drive():
     gauth = GoogleAuth()
 
-    # Load client_secrets.json from Render's environment variables
+    # Load credentials from environment variables
     client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
     my_creds_content = os.getenv("MYCREDS_TXT")
 
@@ -28,11 +28,10 @@ def authenticate_drive():
     if not my_creds_content:
         raise Exception("MYCREDS_TXT is missing from environment variables.")
 
-    # Write client_secrets.json locally
+    # Write credentials locally for PyDrive
     with open("client_secrets.json", "w") as f:
         f.write(client_secrets_content)
 
-    # Write mycreds.txt locally
     with open("mycreds.txt", "w") as f:
         f.write(my_creds_content)
 
@@ -199,7 +198,6 @@ def index():
     </body>
     </html>
     '''
-
 
 @app.route('/upload', methods=['POST'])
 def upload():
