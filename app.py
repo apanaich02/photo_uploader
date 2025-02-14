@@ -1,6 +1,9 @@
 import json
 import os
 import datetime
+import threading
+import time
+import requests
 from flask import Flask, request
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
@@ -73,131 +76,7 @@ ROOT_FOLDER_ID = "1tveP4qft85NmTwqJZGzHZcHhtSqHWyuW"  # Change this to your main
 
 @app.route('/')
 def index():
-    return '''
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Anchor Delivery - Upload</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                background-color: #f4f4f4;
-                color: #333;
-                margin: 0;
-                padding: 20px;
-            }
-            .container {
-                max-width: 400px;
-                margin: auto;
-                padding: 20px;
-                background: white;
-                border-radius: 10px;
-                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            }
-            .logo {
-                max-width: 200px;
-                margin-bottom: 15px;
-            }
-            h2 {
-                font-size: 22px;
-                color: #007bff;
-            }
-            input, select, button {
-                width: 100%;
-                padding: 12px;
-                margin: 8px 0;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                font-size: 16px;
-            }
-            input[type="file"] {
-                border: none;
-                background: #e3e3e3;
-            }
-            button {
-                background-color: #007bff;
-                color: white;
-                border: none;
-                cursor: pointer;
-            }
-            button:hover {
-                background-color: #0056b3;
-            }
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background-color: #1e1e1e;
-                    color: white;
-                }
-                .container {
-                    background: #333;
-                    color: white;
-                }
-                input, select {
-                    background: #444;
-                    color: white;
-                    border: 1px solid #666;
-                }
-                button {
-                    background-color: #0d6efd;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
-            <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
-                
-                <label for='file'>Take a Picture:</label>
-                <input type='file' accept='image/*' capture='camera' name='file' required>
-
-                <label for='pharmacy'>Select Pharmacy:</label>
-                <select name='pharmacy' id='pharmacy' required>
-                    <option value=''>--Select a Pharmacy--</option>
-                    ''' + ''.join([f"<option value='Pharmacy {i}'>Pharmacy {i}</option>" for i in range(1, 16)]) + '''
-                </select>
-
-                <label for='rate'>Select Rate:</label>
-                <select name='rate' id='rate' required>
-                    <option value=''>--Select a Rate--</option>
-                    <option value='ECO'>ECO</option>
-                    <option value='REG'>REG</option>
-                    <option value='HOT'>HOT</option>
-                    <option value='RSH'>RSH</option>
-                    <option value='SHT'>SHT</option>
-                </select>
-
-                <button type='submit'>Upload</button>
-            </form>
-        </div>
-
-        <script>
-            function uploadFile() {
-                var formData = new FormData(document.getElementById('uploadForm'));
-                var selectedPharmacy = document.getElementById('pharmacy').value;
-                var selectedRate = document.getElementById('rate').value;
-                
-                fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    alert(data);
-                    document.getElementById('uploadForm').reset();
-                    document.getElementById('pharmacy').value = selectedPharmacy;
-                    document.getElementById('rate').value = selectedRate;
-                })
-                .catch(error => console.error('Error:', error));
-                return false;
-            }
-        </script>
-    </body>
-    </html>
-    '''
+    return "Server is running."
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -232,6 +111,19 @@ def upload():
     gfile.Upload()
 
     return f'File successfully uploaded to Google Drive in {month_folder}/{pharmacy} as {filename}'
+
+# Function to keep the server alive by pinging itself every 10 minutes
+def keep_alive():
+    while True:
+        try:
+            print("Pinging the server to keep it awake...")
+            requests.get("https://photo-uploader.onrender.com")  # Change this to your Render URL
+        except requests.exceptions.RequestException as e:
+            print(f"Ping failed: {e}")
+        time.sleep(600)  # Wait for 10 minutes (600 seconds)
+
+# Start the keep-alive thread
+threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == "__main__":
     from waitress import serve
