@@ -159,8 +159,7 @@ def index():
         <div class="container">
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm' onsubmit='return uploadFile()'>
-                
+            <form id='uploadForm'>
                 <label for='file'>Take a Picture:</label>
                 <input type='file' accept='image/*' capture='camera' name='file' id="fileInput" required>
 
@@ -180,7 +179,7 @@ def index():
                     <option value='SHT'>SHT</option>
                 </select>
 
-                <button type='submit'>Upload</button>
+                <button type='button' onclick="uploadFile()">Upload</button>
             </form>
 
             <div id="progressBarContainer">
@@ -195,27 +194,21 @@ def index():
             <script>
                 function uploadFile() {
                     var formData = new FormData(document.getElementById('uploadForm'));
-                    document.getElementById("progressBarContainer").style.display = "block";
-                    var progressBar = document.getElementById("progressBar");
-                    progressBar.style.width = "0%";
-                    
+
                     fetch('/upload', {
                         method: 'POST',
                         body: formData
                     })
                     .then(response => response.text())
                     .then(data => {
-                        progressBar.style.width = "100%";
                         document.getElementById("confirmationPopup").style.display = "block";
                     })
                     .catch(error => console.error('Error:', error));
-                    
-                    return false;
                 }
 
                 function closePopup() {
                     document.getElementById("confirmationPopup").style.display = "none";
-                    document.getElementById("fileInput").value = ""; 
+                    document.getElementById("fileInput").value = "";
                 }
             </script>
         </div>
@@ -225,8 +218,17 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    # Process the file upload without redirecting or refreshing the page
-    return 'Upload successful'
+    if 'file' not in request.files:
+        return "No file uploaded", 400
+
+    file = request.files['file']
+    pharmacy = request.form['pharmacy']
+    rate = request.form['rate']
+
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+    return "Upload successful"
 
 if __name__ == "__main__":
     from waitress import serve
