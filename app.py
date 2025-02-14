@@ -1,6 +1,3 @@
-Share
-
-You said:
 import json
 import os
 import datetime
