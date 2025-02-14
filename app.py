@@ -4,7 +4,7 @@ import datetime
 import threading
 import time
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -21,7 +21,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 def authenticate_drive():
     gauth = GoogleAuth()
 
-    # Load credentials from environment variables
+    # Load client_secrets.json from Render's environment variables
     client_secrets_content = os.getenv("CLIENT_SECRETS_JSON")
     my_creds_content = os.getenv("MYCREDS_TXT")
 
@@ -31,10 +31,11 @@ def authenticate_drive():
     if not my_creds_content:
         raise Exception("MYCREDS_TXT is missing from environment variables.")
 
-    # Write credentials locally for PyDrive
+    # Write client_secrets.json locally
     with open("client_secrets.json", "w") as f:
         f.write(client_secrets_content)
 
+    # Write mycreds.txt locally
     with open("mycreds.txt", "w") as f:
         f.write(my_creds_content)
 
@@ -128,30 +129,23 @@ def index():
             button:hover {
                 background-color: #0056b3;
             }
-            #progressBarContainer {
-                display: none;
-                width: 100%;
-                background-color: #ccc;
-                border-radius: 5px;
-                margin-top: 10px;
-            }
-            #progressBar {
-                height: 20px;
-                width: 0%;
-                background-color: #4CAF50;
-                border-radius: 5px;
-            }
-            #confirmationPopup {
-                display: none;
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-                text-align: center;
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1e1e1e;
+                    color: white;
+                }
+                .container {
+                    background: #333;
+                    color: white;
+                }
+                input, select {
+                    background: #444;
+                    color: white;
+                    border: 1px solid #666;
+                }
+                button {
+                    background-color: #0d6efd;
+                }
             }
         </style>
     </head>
@@ -159,9 +153,10 @@ def index():
         <div class="container">
             <img src="/static/logo.png" alt="Anchor Delivery Logo" class="logo">
             <h2>Upload a Delivery Photo</h2>
-            <form id='uploadForm'>
+            <form id='uploadForm' action='/upload' method='post' enctype='multipart/form-data' onsubmit='return uploadFile()'>
+                
                 <label for='file'>Take a Picture:</label>
-                <input type='file' accept='image/*' capture='camera' name='file' id="fileInput" required>
+                <input type='file' accept='image/*' capture='camera' name='file' required>
 
                 <label for='pharmacy'>Select Pharmacy:</label>
                 <select name='pharmacy' id='pharmacy' required>
@@ -179,56 +174,82 @@ def index():
                     <option value='SHT'>SHT</option>
                 </select>
 
-                <button type='button' onclick="uploadFile()">Upload</button>
+                <button type='submit'>Upload</button>
             </form>
-
-            <div id="progressBarContainer">
-                <div id="progressBar"></div>
-            </div>
-
-            <div id="confirmationPopup">
-                <p>Upload successful!</p>
-                <button onclick="closePopup()">OK</button>
-            </div>
-
-            <script>
-                function uploadFile() {
-                    var formData = new FormData(document.getElementById('uploadForm'));
-
-                    fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.text())
-                    .then(data => {
-                        document.getElementById("confirmationPopup").style.display = "block";
-                    })
-                    .catch(error => console.error('Error:', error));
-                }
-
-                function closePopup() {
-                    document.getElementById("confirmationPopup").style.display = "none";
-                    document.getElementById("fileInput").value = "";
-                }
-            </script>
         </div>
+
+        <script>
+            function uploadFile() {
+                var formData = new FormData(document.getElementById('uploadForm'));
+                var selectedPharmacy = document.getElementById('pharmacy').value;
+                var selectedRate = document.getElementById('rate').value;
+                
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    document.getElementById('uploadForm').reset();
+                    document.getElementById('pharmacy').value = selectedPharmacy;
+                    document.getElementById('rate').value = selectedRate;
+                })
+                .catch(error => console.error('Error:', error));
+                return false;
+            }
+        </script>
     </body>
     </html>
     '''
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files:
-        return "No file uploaded", 400
+    if 'file' not in request.files or 'pharmacy' not in request.form or 'rate' not in request.form:
+        return 'Missing required fields'
 
     file = request.files['file']
-    pharmacy = request.form['pharmacy']
-    rate = request.form['rate']
+    pharmacy = request.form['pharmacy'].strip()
+    rate = request.form['rate'].strip()
 
-    filename = secure_filename(file.filename)
-    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    if file.filename == '':
+        return 'No selected file'
 
-    return "Upload successful"
+    # Get the current date
+    current_date = datetime.datetime.now()
+    month_folder = current_date.strftime("%B")
+    formatted_date = current_date.strftime("%Y-%m-%d")
+
+    # Construct the filename
+    filename = secure_filename(f"{pharmacy}_{formatted_date}_{rate}.jpg")
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+
+    # Get or create the month folder in Google Drive
+    month_folder_id = get_drive_folder(ROOT_FOLDER_ID, month_folder)
+    # Get or create the pharmacy folder inside the month folder
+    pharmacy_folder_id = get_drive_folder(month_folder_id, pharmacy)
+
+    # Upload the file to Google Drive inside the correct pharmacy folder
+    gfile = drive.CreateFile({'title': filename, 'parents': [{'id': pharmacy_folder_id}]})
+    gfile.SetContentFile(filepath)
+    gfile.Upload()
+
+    return f'File successfully uploaded to Google Drive in {month_folder}/{pharmacy} as {filename}'
+
+# Function to prevent Render from sleeping
+def prevent_sleep():
+    while True:
+        try:
+            url = "https://flask-photo-upload.onrender.com/"  # Change to your actual Render app URL
+            response = requests.get(url)
+            print(f"Self-ping successful: {response.status_code}")
+        except Exception as e:
+            print(f"Self-ping failed: {e}")
+        time.sleep(600)  # Sleep for 10 minutes
+
+# Start self-ping in a background thread
+threading.Thread(target=prevent_sleep, daemon=True).start()
 
 if __name__ == "__main__":
     from waitress import serve
