@@ -4,7 +4,7 @@ import datetime
 import threading
 import time
 import requests
-from flask import Flask, request, redirect, url_for
+from flask import Flask, request
 from werkzeug.utils import secure_filename
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -219,28 +219,18 @@ def index():
     </html>
     '''
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    if 'file' not in request.files or 'pharmacy' not in request.form or 'rate' not in request.form:
-        return 'Missing required fields'
-
-    file = request.files['file']
-    pharmacy = request.form['pharmacy'].strip()
-    rate = request.form['rate'].strip()
-
-    if file.filename == '':
-        return 'No selected file'
-
-    file.save(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename)))
-
-    return redirect(url_for('index'))
-
-# Keep-alive function
+# Function to keep the server alive
 def keep_alive():
     while True:
-        requests.get("https://your-app-url.onrender.com")
-        time.sleep(600)
+        try:
+            url = "https://your-app-url.onrender.com"  # Replace with your Render URL
+            response = requests.get(url)
+            print(f"Pinged server: {response.status_code}")
+        except Exception as e:
+            print(f"Error pinging server: {e}")
+        time.sleep(600)  # Wait 10 minutes before the next ping
 
+# Start keep-alive thread
 threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == "__main__":
