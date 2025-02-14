@@ -129,6 +129,41 @@ def index():
             button:hover {
                 background-color: #0056b3;
             }
+            #progressContainer {
+                display: none;
+                margin-top: 10px;
+                width: 100%;
+            }
+            #progressBar {
+                width: 0%;
+                height: 10px;
+                background-color: #007bff;
+                border-radius: 5px;
+            }
+            #popup {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .popup-content {
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                text-align: center;
+                max-width: 300px;
+            }
+            .popup-content button {
+                margin-top: 10px;
+                width: 100%;
+            }
             @media (prefers-color-scheme: dark) {
                 body {
                     background-color: #1e1e1e;
@@ -145,6 +180,10 @@ def index():
                 }
                 button {
                     background-color: #0d6efd;
+                }
+                .popup-content {
+                    background: #444;
+                    color: white;
                 }
             }
         </style>
@@ -176,6 +215,17 @@ def index():
 
                 <button type='submit'>Upload</button>
             </form>
+
+            <div id="progressContainer">
+                <div id="progressBar"></div>
+            </div>
+        </div>
+
+        <div id="popup">
+            <div class="popup-content">
+                <p id="popupMessage"></p>
+                <button onclick="closePopup()">OK</button>
+            </div>
         </div>
 
         <script>
@@ -184,19 +234,52 @@ def index():
                 var selectedPharmacy = document.getElementById('pharmacy').value;
                 var selectedRate = document.getElementById('rate').value;
                 
+                document.getElementById("progressContainer").style.display = "block";
+                var progressBar = document.getElementById("progressBar");
+                progressBar.style.width = "0%";
+
+                var uploadTime = 5000; // Estimated upload time (5 seconds)
+                var startTime = Date.now();
+
+                var progressInterval = setInterval(function() {
+                    var elapsedTime = Date.now() - startTime;
+                    var progress = Math.min((elapsedTime / uploadTime) * 100, 100);
+                    progressBar.style.width = progress + "%";
+                    
+                    if (progress >= 100) {
+                        clearInterval(progressInterval);
+                    }
+                }, 500);
+
                 fetch('/upload', {
                     method: 'POST',
                     body: formData
                 })
                 .then(response => response.text())
                 .then(data => {
-                    alert(data);
+                    clearInterval(progressInterval);
+                    progressBar.style.width = "100%";
+                    showPopup(data);
                     document.getElementById('uploadForm').reset();
                     document.getElementById('pharmacy').value = selectedPharmacy;
                     document.getElementById('rate').value = selectedRate;
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    clearInterval(progressInterval);
+                    showPopup("Upload failed. Please try again.");
+                    console.error('Error:', error);
+                });
                 return false;
+            }
+
+            function showPopup(message) {
+                document.getElementById("popupMessage").innerText = message;
+                document.getElementById("popup").style.display = "flex";
+            }
+
+            function closePopup() {
+                document.getElementById("popup").style.display = "none";
+                document.getElementById("progressContainer").style.display = "none";
             }
         </script>
     </body>
